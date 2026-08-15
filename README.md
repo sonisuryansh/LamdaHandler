@@ -1,172 +1,87 @@
-# 🚀 AWS Lambda S3 Event Handler
+# AWS Lambda S3 Event Handler
 
-A Java-based **AWS Lambda function** that listens to **Amazon S3 events** and logs details about newly uploaded files — bucket name and object key — using the AWS Lambda runtime.
-
----
-
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Project Structure](#project-structure)
-- [Prerequisites](#prerequisites)
-- [Dependencies](#dependencies)
-- [Build](#build)
-- [Deploy to AWS Lambda](#deploy-to-aws-lambda)
-- [How It Works](#how-it-works)
-- [Example S3 Event](#example-s3-event)
-- [Expected Output](#expected-output)
-
----
-
-## Overview
-
-This project demonstrates a minimal but production-ready AWS Lambda handler written in **Java 21**. When a file is uploaded to an S3 bucket, Lambda triggers this handler, which:
-
-1. Receives the `S3Event` payload
-2. Iterates over all event records
-3. Logs the **bucket name** and **file name (object key)** for each upload
-4. Returns a success message
-
----
+A small Java 21 AWS Lambda example that receives an Amazon S3 event, reads the uploaded object's bucket name and key, logs them, and returns a success message.
 
 ## Project Structure
 
-```
-Lamda/
+```text
+LamdaHandler/
+├── .gitignore
+├── README.md
 └── lambda-demo/
-    ├── pom.xml                          # Maven build configuration
+    ├── pom.xml
     └── src/
         └── main/
             └── java/
                 └── com/
                     └── suryansh/
-                        └── LambdaHandler.java   # Core Lambda handler
+                        └── LambdaHandler.java
 ```
 
----
+## What This Project Contains
 
-## Prerequisites
+The repository currently contains a single Lambda handler and its Maven build configuration.
 
-| Tool | Version |
-|------|---------|
-| Java | 21+ |
-| Apache Maven | 3.6+ |
-| AWS CLI | Configured with appropriate IAM permissions |
-| AWS Account | With Lambda & S3 access |
+`LambdaHandler.java` implements:
 
----
+```java
+RequestHandler<S3Event, String>
+```
 
-## Dependencies
+When Lambda receives an S3 event, the handler:
 
-Declared in [`pom.xml`](lambda-demo/pom.xml):
+1. Logs that an S3 event was received.
+2. Iterates through the event records.
+3. Reads the S3 bucket name.
+4. Reads the uploaded object key.
+5. Logs the uploaded file information.
+6. Returns `S3 event processed successfully`.
+
+## Maven Configuration
+
+The project uses Java 21 and Maven.
+
+### Main dependencies
 
 | Dependency | Version | Purpose |
-|---|---|---|
-| `aws-lambda-java-core` | 1.2.3 | Lambda `Context` and `RequestHandler` interfaces |
-| `aws-lambda-java-events` | 3.11.5 | Strongly-typed `S3Event` and record models |
+|---|---:|---|
+| `aws-lambda-java-core` | `1.2.3` | AWS Lambda `Context` and `RequestHandler` APIs |
+| `aws-lambda-java-events` | `3.11.5` | AWS event classes including `S3Event` |
+|
 
-The build uses the **Maven Shade Plugin** (`3.5.3`) to produce a fat/uber JAR — bundling all dependencies into a single deployable artifact.
-
----
+The project also uses the Maven Shade Plugin `3.5.3` to package dependencies into the generated JAR.
 
 ## Build
 
+From the `lambda-demo` directory:
+
 ```bash
-cd lambda-demo
 mvn clean package
 ```
 
-The shaded JAR will be generated at:
+The packaged JAR is generated in:
 
-```
-lambda-demo/target/lambda-demo-1.0.0.jar
-```
-
----
-
-## Deploy to AWS Lambda
-
-### 1. Create the Lambda Function
-
-```bash
-aws lambda create-function \
-  --function-name s3-event-handler \
-  --runtime java21 \
-  --role arn:aws:iam::<YOUR_ACCOUNT_ID>:role/<YOUR_LAMBDA_ROLE> \
-  --handler com.suryansh.LambdaHandler::handleRequest \
-  --zip-file fileb://lambda-demo/target/lambda-demo-1.0.0.jar \
-  --timeout 30 \
-  --memory-size 512
+```text
+lambda-demo/target/
 ```
 
-### 2. Add S3 Trigger Permission
+## Handler
 
-```bash
-aws lambda add-permission \
-  --function-name s3-event-handler \
-  --principal s3.amazonaws.com \
-  --statement-id s3-trigger \
-  --action lambda:InvokeFunction \
-  --source-arn arn:aws:s3:::<YOUR_BUCKET_NAME>
+The Lambda handler class is:
+
+```text
+com.suryansh.LambdaHandler
 ```
 
-### 3. Configure S3 Bucket Notification
+For AWS Lambda configuration, the handler method is:
 
-```bash
-aws s3api put-bucket-notification-configuration \
-  --bucket <YOUR_BUCKET_NAME> \
-  --notification-configuration '{
-    "LambdaFunctionConfigurations": [{
-      "LambdaFunctionArn": "arn:aws:lambda:<REGION>:<ACCOUNT_ID>:function:s3-event-handler",
-      "Events": ["s3:ObjectCreated:*"]
-    }]
-  }'
+```text
+com.suryansh.LambdaHandler::handleRequest
 ```
 
-### 4. Update an Existing Function
+## Example Event
 
-```bash
-aws lambda update-function-code \
-  --function-name s3-event-handler \
-  --zip-file fileb://lambda-demo/target/lambda-demo-1.0.0.jar
-```
-
----
-
-## How It Works
-
-```java
-public class LambdaHandler implements RequestHandler<S3Event, String> {
-
-    @Override
-    public String handleRequest(S3Event event, Context context) {
-        context.getLogger().log("S3 Event received");
-
-        event.getRecords().forEach(record -> {
-            String bucketName = record.getS3().getBucket().getName();
-            String fileName   = record.getS3().getObject().getKey();
-
-            context.getLogger().log(
-                "New file uploaded: " + fileName +
-                " to bucket: " + bucketName
-            );
-        });
-
-        return "S3 event processed successfully";
-    }
-}
-```
-
-| Component | Description |
-|---|---|
-| `RequestHandler<S3Event, String>` | Typed interface — input is an S3 event, output is a String |
-| `S3Event` | AWS-provided POJO representing one or more S3 notifications |
-| `Context` | Provides Lambda metadata and a CloudWatch-backed logger |
-| `getRecords()` | Returns all S3 records in the event (batch-safe) |
-
----
-
-## Example S3 Event
+The handler expects an AWS S3 event containing one or more records. A simplified example is:
 
 ```json
 {
@@ -174,10 +89,10 @@ public class LambdaHandler implements RequestHandler<S3Event, String> {
     {
       "s3": {
         "bucket": {
-          "name": "my-upload-bucket"
+          "name": "my-bucket"
         },
         "object": {
-          "key": "uploads/photo.png"
+          "key": "uploads/example.txt"
         }
       }
     }
@@ -185,25 +100,17 @@ public class LambdaHandler implements RequestHandler<S3Event, String> {
 }
 ```
 
----
+## Example Log Output
 
-## Expected Output
+For the event above, the handler logs information similar to:
 
-Logs visible in **Amazon CloudWatch Logs** (`/aws/lambda/s3-event-handler`):
-
-```
+```text
 S3 Event received
-New file uploaded: uploads/photo.png to bucket: my-upload-bucket
+New file uploaded: uploads/example.txt to bucket: my-bucket
 ```
 
-Lambda return value:
+## Notes
 
-```
-S3 event processed successfully
-```
+This repository is a learning/demo project for understanding a Java AWS Lambda handler with Amazon S3 events and Maven packaging.
 
----
-
-## 📄 License
-
-This project is open-source and available for personal and educational use.
+The repository does not currently include infrastructure-as-code, automated deployment workflows, or additional AWS configuration files.
